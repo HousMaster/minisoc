@@ -1,6 +1,6 @@
 .PHONY: all build run clean 
 
-NAME=minisoc
+NAME=app
 
 all: build run
 

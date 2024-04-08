@@ -1,11 +1,14 @@
 package main
 
 import (
+	"app/internal/app"
+	"app/internal/config"
+	"app/internal/storage/sqlite"
+	"context"
 	"log/slog"
 	"os"
-
-	"github.com/HousMaster/microsoc/internal/app"
-	"github.com/HousMaster/microsoc/internal/config"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -15,14 +18,17 @@ const (
 
 func main() {
 
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	//
 	conf := config.MustLoad()
 	//
 	log := setupLogger(conf.Env)
 	//
-	application := app.New(log, conf.GRPC.Port, conf.StoragePath)
-	_ = application
-
+	storage := sqlite.MustInit(conf.StoragePath)
+	//
+	application := app.New(ctx, log, storage, conf.HTTPServer.Port)
+	//
+	application.HttpServer.MustRun()
 }
 
 func setupLogger(env string) *slog.Logger {
