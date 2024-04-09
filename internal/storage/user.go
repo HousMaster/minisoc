@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
-	ErrUserExists   = errors.New("user exists")
+	ErrUserNotFound           = errors.New("user not found")
+	ErrUserExists             = errors.New("user exists")
+	ErrUserDescriptionIsEmpty = errors.New("user description is empty")
 )
 
 type UserAuth interface {

@@ -12,9 +12,9 @@ type App struct {
 	HttpServer *httpserver.Server
 }
 
-func New(ctx context.Context, log *slog.Logger, storage storage.Storage, port int) *App {
+func New(ctx context.Context, log *slog.Logger, storage storage.Storage, port int, jwtKey string) *App {
 
 	return &App{
-		HttpServer: httpserver.New(ctx, log, storage, port),
+		HttpServer: httpserver.New(ctx, log, storage, port, jwtKey),
 	}
 }

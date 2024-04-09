@@ -7,8 +7,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
 )
 
 const (
@@ -18,7 +16,8 @@ const (
 
 func main() {
 
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	// ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx := context.Background()
 	//
 	conf := config.MustLoad()
 	//
@@ -26,7 +25,7 @@ func main() {
 	//
 	storage := sqlite.MustInit(conf.StoragePath)
 	//
-	application := app.New(ctx, log, storage, conf.HTTPServer.Port)
+	application := app.New(ctx, log, storage, conf.HTTPServer.Port, conf.HTTPServer.TokenSecretKey)
 	//
 	application.HttpServer.MustRun()
 }

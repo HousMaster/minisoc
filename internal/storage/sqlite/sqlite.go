@@ -21,7 +21,8 @@ func New(storagePath string) (*Storage, error) {
 	CREATE TABLE IF NOT EXISTS users(
 		id INTEGER PRIMARY KEY,
 		username TEXT NOT NULL UNIQUE,
-		password TEXT NOT NULL);
+		password TEXT NOT NULL,
+		description TEXT DEFAULT '');
 	`)
 
 	if err != nil {

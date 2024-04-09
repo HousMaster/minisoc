@@ -15,9 +15,10 @@ type Config struct {
 }
 
 type HTTPServer struct {
-	Port        int           `yaml:"port"`
-	Timeout     time.Duration `yaml:"timeout"`
-	IdleTimeout time.Duration `yaml:"idle_timeout"`
+	Port           int           `yaml:"port"`
+	Timeout        time.Duration `yaml:"timeout"`
+	IdleTimeout    time.Duration `yaml:"idle_timeout"`
+	TokenSecretKey string        `yaml:"token_secret_key"`
 }
 
 func MustLoad() *Config {

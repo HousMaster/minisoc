@@ -7,5 +7,6 @@ type User struct {
 }
 
 type UserProfile struct {
+	Username    string
 	Description string
 }
