@@ -10,6 +10,29 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
+func (s *Storage) userInit() error {
+	const op = "storage.sqlite.userInit"
+
+	stmt, err := s.db.Prepare(`
+	CREATE TABLE IF NOT EXISTS users(
+		id INTEGER PRIMARY KEY,
+		username TEXT NOT NULL UNIQUE,
+		password TEXT NOT NULL,
+		description TEXT DEFAULT '');
+	`)
+
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	_, err = stmt.Exec()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
+}
+
 func (s *Storage) GetUser(username string) (*models.User, error) {
 	const op = "storage.sqlite.GetUser"
 

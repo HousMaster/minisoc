@@ -8,26 +8,45 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// .
+// router
+// .
 func (s *Server) router(ctx *fasthttp.RequestCtx) {
 
 	path := string(ctx.Path())
 	switch path {
-	case "/register":
-		postJson(s.registerHandler)(ctx)
-	case "/login":
-		postJson(s.loginHandler)(ctx)
-	case "/profile":
-		postJson(s.auth(s.getUserProfile))(ctx)
-	case "/edit_profile":
-		postJson(s.auth(s.updateUserProfile))(ctx)
 	case "/":
-		s.auth(s.indexHandler)(ctx)
+		// index app
+		s.indexHandler(ctx)
+
+		// user
+	case "/register":
+		post(s.registerHandler)(ctx)
+	case "/login":
+		post(s.loginHandler)(ctx)
+	case "/profile":
+		post(s.auth(s.getUserProfile))(ctx)
+	case "/edit_profile":
+		post(s.auth(s.updateUserProfile))(ctx)
+
+		// message
+	case "/send_message":
+		post(s.auth(s.sendMessageHandler))(ctx)
+	case "/get_messages":
+		s.getMessagesHandler(ctx)
+	case "/message_events":
+		s.messageEventsHandler(ctx)
+
+		// 404
 	default:
 		// respondWithError(ctx, http.StatusNotFound, "Page not found")
 		respondWithError(ctx, http.StatusBadRequest, "bad request")
 	}
 }
 
+// middlewares
+// .
+// .
 func (s *Server) auth(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
 
@@ -48,15 +67,15 @@ func (s *Server) auth(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 			return
 		}
 
-		username := claims["username"].(string)
-		ctx.SetUserValue("username", username)
+		ctx.SetUserValue("user_id", claims["user_id"].(string))
+		ctx.SetUserValue("user_name", claims["user_name"].(string))
 
 		h(ctx)
 	}
 }
 
-// set content type json and handle only method post
-func postJson(h fasthttp.RequestHandler) fasthttp.RequestHandler {
+// .
+func post(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
 
 		if !ctx.Request.Header.IsPost() {
@@ -64,21 +83,16 @@ func postJson(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 			return
 		}
 
-		ctx.SetContentType("Content-Type: application/json; charset=utf-8")
-
 		h(ctx)
 	}
 }
 
+//	libs
+//
 // .
-func respondWithError(ctx *fasthttp.RequestCtx, statusCode int, errorText string) {
-	respData, _ := json.Marshal(errorText)
-	ctx.SetStatusCode(statusCode)
-	ctx.Write(respData)
-}
-
 // .
 func respondJSON(ctx *fasthttp.RequestCtx, statusCode int, v any) {
+	ctx.SetContentType("Content-Type: application/json; charset=utf-8")
 	respData, _ := json.Marshal(v)
 	ctx.SetStatusCode(statusCode)
 	ctx.Write(respData)
@@ -86,7 +100,10 @@ func respondJSON(ctx *fasthttp.RequestCtx, statusCode int, v any) {
 
 // .
 func respondOkJSON(ctx *fasthttp.RequestCtx) {
-	respData, _ := json.Marshal("ok")
-	ctx.SetStatusCode(http.StatusOK)
-	ctx.Write(respData)
+	respondJSON(ctx, http.StatusOK, "ok")
+}
+
+// .
+func respondWithError(ctx *fasthttp.RequestCtx, statusCode int, errorText string) {
+	respondJSON(ctx, statusCode, errorText)
 }

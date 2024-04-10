@@ -111,7 +111,8 @@ func (s *Server) loginHandler(ctx *fasthttp.RequestCtx) {
 
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
-	claims["username"] = req.Username
+	claims["user_id"] = fmt.Sprintf("%d", user.ID)
+	claims["user_name"] = req.Username
 	claims["exp"] = time.Now().Add(time.Hour * 60).Unix()
 	tokenString, err := token.SignedString(s.tokenSecretKey)
 	if err != nil {
@@ -202,7 +203,7 @@ func (s *Server) updateUserProfile(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if ctx.UserValue("username").(string) != req.Username {
+	if ctx.UserValue("user_name").(string) != req.Username {
 		respondWithError(ctx, http.StatusBadRequest, "access error")
 		return
 	}
@@ -224,11 +225,11 @@ func (s *Server) updateUserProfile(ctx *fasthttp.RequestCtx) {
 	respondOkJSON(ctx)
 }
 
-func (s *Server) indexHandler(ctx *fasthttp.RequestCtx) {
+// func (s *Server) indexHandler(ctx *fasthttp.RequestCtx) {
 
-	// const op = "httpserver.indexHandler"
-	// log := s.log.With(slog.String("op", op))
+// 	// const op = "httpserver.indexHandler"
+// 	// log := s.log.With(slog.String("op", op))
 
-	username := ctx.UserValue("username").(string)
-	respondJSON(ctx, http.StatusOK, fmt.Sprintf("Hello, %s!", username))
-}
+// 	username := ctx.UserValue("user_name").(string)
+// 	respondJSON(ctx, http.StatusOK, fmt.Sprintf("Hello, %s!", username))
+// }
