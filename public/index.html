@@ -9,7 +9,9 @@
 
     <script>
 
-        const source = new EventSource("/message_events");
+        const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTI5OTg5MjgsInVzZXJfaWQiOiIxIiwidXNlcl9uYW1lIjoiYWRtaW4ifQ.QOfJoviq81XI3N78547XMV_UfL2a9HMqikTDcRVy3zM";
+
+        const source = new EventSource("/message_events?token="+token);
         
         source.onopen = function (event) {
             console.log("connection open");

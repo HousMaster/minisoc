@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"app/internal/storage/models"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -9,6 +8,9 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"app/internal/httpserver/eventserver"
+	"app/internal/storage/models"
 
 	"github.com/valyala/fasthttp"
 )
@@ -87,14 +89,30 @@ func (s *Server) sendMessageHandler(ctx *fasthttp.RequestCtx) {
 	//
 	// send message to sse
 	//
+	s.eventserver.NewEventChan <- &eventserver.Event{
+		Type:   "message",
+		FromID: ctx.UserValue("user_id").(string),
+		Text:   req.Text,
+	}
 
 	respondOkJSON(ctx)
 }
 
 func (s *Server) messageEventsHandler(ctx *fasthttp.RequestCtx) {
 
+	const op = "httpserver.messageEventsHandler"
+	log := s.log.With(slog.String("op", op))
+
 	//
-	ctx.SetContentType("text/event-stream; charset=utf8")
+	// parse token
+	tokenParams, err := s.parseToken(string(ctx.QueryArgs().Peek("token")))
+	if err != nil {
+		respondWithError(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	//
+	ctx.SetContentType("text/event-stream")
 	ctx.Response.Header.Set("Cache-Control", "no-cache")
 	ctx.Response.Header.Set("Connection", "keep-alive")
 	ctx.Response.Header.Set("Transfer-Encoding", "chunked")
@@ -102,17 +120,66 @@ func (s *Server) messageEventsHandler(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Set("Access-Control-Allow-Headers", "Cache-Control")
 	ctx.Response.Header.Set("Access-Control-Allow-Credentials", "true")
 
-	//
-	ctx.SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
-		var i int
-		for {
-			i++
-			message := fmt.Sprintf("%d - the time is %v", i, time.Now())
-			fmt.Fprintf(w, "data: Message: %s\n\n", message)
-			fmt.Println(message)
+	ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 
-			w.Flush()
-			time.Sleep(5 * time.Second)
+		client := &eventserver.EventClient{
+			UserID:     tokenParams["user_id"].(string),
+			RemoteAddr: ctx.RemoteAddr().String(),
+			WriteChan:  make(chan *eventserver.Event),
 		}
-	}))
+
+		s.eventserver.NewConnectionClient <- client
+		s.eventserver.NewEventChan <- &eventserver.Event{
+			Type:   "connect",
+			FromID: client.UserID,
+			Text:   fmt.Sprintf("new connection %s:%s", client.UserID, client.RemoteAddr),
+		}
+
+		ticker := time.NewTicker(2 * time.Second)
+
+		defer func() {
+			s.eventserver.DisconnectClientChan <- client
+			s.eventserver.NewEventChan <- &eventserver.Event{
+				Type:   "disconnect",
+				FromID: client.UserID,
+				Text:   fmt.Sprintf("disconnection %s:%s", client.UserID, client.RemoteAddr),
+			}
+			ticker.Stop()
+		}()
+
+	LOOP:
+		for {
+			select {
+
+			// ping client
+			case <-ticker.C:
+
+				fmt.Fprint(w, "data: ping\n\n")
+				if err := w.Flush(); err != nil {
+					log.Error("%v", err)
+					break LOOP
+				}
+
+			// send event client
+			case event := <-client.WriteChan:
+
+				data, err := json.Marshal(event)
+				if err != nil {
+					log.Error("%v", err)
+					continue
+				}
+
+				fmt.Fprintf(w, "data:%s\n\n", data)
+				if err := w.Flush(); err != nil {
+					log.Error("%v", err)
+					break LOOP
+				}
+
+			// server shutdown (-)
+			case <-ctx.Done():
+				fmt.Println("ctx.Done")
+				break LOOP
+			}
+		}
+	})
 }

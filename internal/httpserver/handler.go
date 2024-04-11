@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/dgrijalva/jwt-go"
@@ -15,9 +16,11 @@ func (s *Server) router(ctx *fasthttp.RequestCtx) {
 
 	path := string(ctx.Path())
 	switch path {
+	// index app
 	case "/":
-		// index app
 		s.indexHandler(ctx)
+	case "/favicon.ico":
+		s.faviconHandler(ctx)
 
 		// user
 	case "/register":
@@ -35,9 +38,14 @@ func (s *Server) router(ctx *fasthttp.RequestCtx) {
 	case "/get_messages":
 		s.getMessagesHandler(ctx)
 	case "/message_events":
+		// s.auth(s.messageEventsHandler)(ctx)
 		s.messageEventsHandler(ctx)
 
-		// 404
+	// case "/settoken":
+	// 	ctx.Response.Header.Set("token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTI5OTg5MjgsInVzZXJfaWQiOiIxIiwidXNlcl9uYW1lIjoiYWRtaW4ifQ.QOfJoviq81XI3N78547XMV_UfL2a9HMqikTDcRVy3zM")
+	// 	respondOkJSON(ctx)
+
+	// 404
 	default:
 		// respondWithError(ctx, http.StatusNotFound, "Page not found")
 		respondWithError(ctx, http.StatusBadRequest, "bad request")
@@ -50,20 +58,9 @@ func (s *Server) router(ctx *fasthttp.RequestCtx) {
 func (s *Server) auth(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
 
-		tokenString := string(ctx.Request.Header.Peek("token"))
-
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return s.tokenSecretKey, nil
-		})
-
-		if err != nil || !token.Valid {
-			respondWithError(ctx, http.StatusBadRequest, "authorization token invalid")
-			return
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			respondWithError(ctx, http.StatusBadRequest, "authorization token invalid")
+		claims, err := s.parseToken(string(ctx.Request.Header.Peek("token")))
+		if err != nil {
+			respondWithError(ctx, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -87,8 +84,32 @@ func post(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 	}
 }
 
-//	libs
-//
+// libs
+// .
+// .
+func (s *Server) parseToken(tokenString string) (jwt.MapClaims, error) {
+
+	if tokenString == "" {
+		return nil, errors.New("authorization token invalid")
+	}
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return s.tokenSecretKey, nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, errors.New("authorization token invalid")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("authorization token invalid")
+	}
+
+	return claims, nil
+}
+
+// common lib
 // .
 // .
 func respondJSON(ctx *fasthttp.RequestCtx, statusCode int, v any) {

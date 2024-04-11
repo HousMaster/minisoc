@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"app/internal/httpserver/eventserver"
 	"app/internal/storage"
 	"context"
 	"fmt"
@@ -19,6 +20,7 @@ type Server struct {
 	validator      *validator.Validate
 	addr           string
 	tokenSecretKey []byte
+	eventserver    *eventserver.EventServer
 }
 
 func New(ctx context.Context, log *slog.Logger, storage storage.Storage, port int, jwtKey string) *Server {
@@ -30,6 +32,7 @@ func New(ctx context.Context, log *slog.Logger, storage storage.Storage, port in
 		validator:      validator.New(),
 		addr:           fmt.Sprintf(":%d", port),
 		tokenSecretKey: []byte(jwtKey),
+		eventserver:    eventserver.New(ctx, log),
 	}
 
 	return server
@@ -41,9 +44,8 @@ func (s *Server) Run() error {
 
 	log.Info("http server is running", slog.String("addr", s.addr))
 
-	// if err := s.httpServer.Start(s.addr); err != nil {
-	// 	return fmt.Errorf("%s: %w", op, err)
-	// }
+	// run eventserver
+	go s.eventserver.Run()
 
 	if err := fasthttp.ListenAndServe(s.addr, s.router); err != nil {
 		return fmt.Errorf("%s: %w", op, err)
